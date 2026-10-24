@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           repository: cinnabar-mc/cinnabar
-          ref: 27111c3266c15b9bafa46db5b0270ae17ea51cc4
+          ref: bd91ddd378b6b402f7f5b671a081d8476bb90cfe
           persist-credentials: false
       - name: Apply Android display-cutout fix
         run: |
