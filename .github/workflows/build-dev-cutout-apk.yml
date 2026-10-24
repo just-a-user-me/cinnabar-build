@@ -22,8 +22,8 @@ jobs:
           persist-credentials: false
       - name: Fix dev localserver gallery collision
         run: |
-          sed -i 's/\bgalleryListener\b/entityGalleryListener/g; s/\bgalleryConn\b/entityGalleryConn/g' tools/localserver/entity_gallery.go
-          sed -i 's/galleryConn{/entityGalleryConn{/' tools/localserver/entity_gallery_test.go
+          sed -i 's/\bgalleryListener\b/pagedEntityGalleryListener/g; s/\bgalleryConn\b/pagedEntityGalleryConn/g' tools/localserver/entity_gallery.go
+          sed -i 's/galleryConn{/pagedEntityGalleryConn{/' tools/localserver/entity_gallery_test.go
       - name: Apply Android display-cutout fix
         run: |
           git apply <<'PATCH'

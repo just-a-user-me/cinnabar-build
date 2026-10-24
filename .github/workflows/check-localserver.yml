@@ -1,0 +1,30 @@
+name: Check localserver build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    name: Build Go local server
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          repository: cinnabar-mc/cinnabar
+          ref: 94d6d713acb7178f791d2b94da1f602dbb0dd400
+          persist-credentials: false
+      - name: Fix dev localserver gallery collision
+        run: |
+          sed -i 's/\bgalleryListener\b/pagedEntityGalleryListener/g; s/\bgalleryConn\b/pagedEntityGalleryConn/g' tools/localserver/entity_gallery.go
+          sed -i 's/galleryConn{/pagedEntityGalleryConn{/' tools/localserver/entity_gallery_test.go
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: tools/localserver/go.mod
+          cache: false
+      - name: Build
+        run: GOWORK=off go build ./...
+        working-directory: tools/localserver
