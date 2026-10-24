@@ -1,0 +1,97 @@
+name: Build dev cutout APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    name: Build arm64 APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      CINNABAR_ANDROID_PROFILE: play
+      CARGO_INCREMENTAL: "0"
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          repository: cinnabar-mc/cinnabar
+          ref: 27111c3266c15b9bafa46db5b0270ae17ea51cc4
+          persist-credentials: false
+      - name: Apply Android display-cutout fix
+        run: |
+          git apply <<'PATCH'
+          diff --git a/packaging/android/BootstrapActivity.java b/packaging/android/BootstrapActivity.java
+          --- a/packaging/android/BootstrapActivity.java
+          +++ b/packaging/android/BootstrapActivity.java
+          @@ -5,6 +5,7 @@
+           import android.app.ProgressDialog;
+           import android.content.Intent;
+           import android.content.res.AssetManager;
+          +import android.os.Build;
+           import android.os.Bundle;
+           import java.io.File;
+           import java.io.FileOutputStream;
+          @@ -39,6 +40,12 @@
+           
+               @Override protected void onCreate(Bundle state) {
+                   super.onCreate(state);
+          +        if (Build.VERSION.SDK_INT >= 28) {
+          +            android.view.WindowManager.LayoutParams attributes = getWindow().getAttributes();
+          +            attributes.layoutInDisplayCutoutMode =
+          +                    android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+          +            getWindow().setAttributes(attributes);
+          +        }
+                   setContentView(new StartupScreen(this));
+                   if (!StartupDiagnostics.showPreviousFailure(this, this::start)) start();
+               }
+          diff --git a/packaging/android/CinnabarActivity.java b/packaging/android/CinnabarActivity.java
+          --- a/packaging/android/CinnabarActivity.java
+          +++ b/packaging/android/CinnabarActivity.java
+          @@ -19,6 +19,12 @@
+           
+               @Override protected void onCreate(Bundle savedInstanceState) {
+                   super.onCreate(savedInstanceState);
+          +        if (Build.VERSION.SDK_INT >= 28) {
+          +            WindowManager.LayoutParams attributes = getWindow().getAttributes();
+          +            attributes.layoutInDisplayCutoutMode =
+          +                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+          +            getWindow().setAttributes(attributes);
+          +        }
+                   FilePicker.attach(this);
+                   startup = new StartupScreen(this);
+                   addContentView(startup, new android.view.ViewGroup.LayoutParams(
+          PATCH
+      - uses: dtolnay/rust-toolchain@1.99.0
+        with:
+          targets: aarch64-linux-android
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 'stable'
+          cache: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install the pinned Android SDK packages and cargo-ndk
+        run: |
+          pin() { python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))[sys.argv[2]])' packaging/android/runtime.json "$1"; }
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
+            "platforms;android-$(pin target_sdk)" "build-tools;$(pin build_tools)" "ndk;$(pin ndk)" >/dev/null
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$(pin ndk)" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/$(pin ndk)" >> "$GITHUB_ENV"
+          cargo install cargo-ndk --version "$(pin cargo_ndk)" --locked
+      - name: Install Android build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends librsvg2-bin cmake ninja-build gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+      - name: Build the APK
+        run: bash packaging/android/build-apk.sh
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cinnabar-dev-cutout-arm64
+          path: target/android/*-arm64-v8a.apk
+          if-no-files-found: error
+          retention-days: 14
