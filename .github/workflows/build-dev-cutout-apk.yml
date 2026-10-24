@@ -18,8 +18,12 @@ jobs:
       - uses: actions/checkout@v6
         with:
           repository: cinnabar-mc/cinnabar
-          ref: bd91ddd378b6b402f7f5b671a081d8476bb90cfe
+          ref: 94d6d713acb7178f791d2b94da1f602dbb0dd400
           persist-credentials: false
+      - name: Fix dev localserver gallery collision
+        run: |
+          sed -i 's/\bgalleryListener\b/entityGalleryListener/g; s/\bgalleryConn\b/entityGalleryConn/g' tools/localserver/entity_gallery.go
+          sed -i 's/galleryConn{/entityGalleryConn{/' tools/localserver/entity_gallery_test.go
       - name: Apply Android display-cutout fix
         run: |
           git apply <<'PATCH'
